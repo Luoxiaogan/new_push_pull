@@ -1,0 +1,195 @@
+(base) lg@user-NULL:~/new_push_pull$ cd scripts_pushpull_differ_lr
+(base) lg@user-NULL:~/new_push_pull/scripts_pushpull_differ_lr$ cd ..
+(base) lg@user-NULL:~/new_push_pull$ python scripts_pushpull_differ_lr/run_custom_strategy_experiments.py \
+    --topology neighbor \
+    --n 16 \
+    --matrix_seed 42 \
+    --lr_basic 0.007 \
+    --num_c_values 5 \
+    --dataset_name MNIST \
+    --batch_size 128 \
+    --num_epochs 10 \
+    --alpha 1000 \
+    --use_hetero \
+    --device cuda:0
+
+=== Generating neighbor topology with n=16, seed=42 ===
+
+=== Generating 5 D matrices with increasing c values ===
+Generated c values: min=0.8564, max=1.1925
+  1. c=0.8564: c = 0.856431
+  2. c=0.9146: c = 0.914608
+  3. c=1.0158: c = 1.015799
+  4. c=1.1170: c = 1.116991
+  5. c=1.1925: c = 1.192521
+
+============================================================
+Running experiment 1/5: c=0.8564
+============================================================
+
+=== Generating neighbor topology with n=16, seed=42 ===
+Topology properties:
+  Matrix A: kappa=3.0439, beta=0.8812
+  Matrix B: kappa=3.4180, beta=0.8975
+
+=== Computing learning rates with strategy 'custom' ===
+Learning rate distribution:
+  Total: 0.112000 (expected: 0.112000)
+  Min: 0.000694, Max: 0.012273
+  Mean: 0.007000, Std: 0.003961
+
+Theoretical convergence factor c = 0.856431
+Saved experiment configuration to: ./custom_experiments/custom_strategy_20250722_175517_neighbor_16nodes/experiment_20250722_175518_neighbor_custom_16nodes/config.yaml
+
+=== Running 1 repetition(s) ===
+
+Repetition 1/1
+使用异质性数据集
+函数内设置种子为: 42
+root: ./custom_experiments/custom_strategy_20250722_175517_neighbor_16nodes/experiment_20250722_175518_neighbor_custom_16nodes
+使用 PushPull 算法, 这里只记录grad_nrom
+直接从第一次 closure() 调用中获取初始值
+Initial grad norm: 0.005960055917967111, Initial avg grad norm: 0.0014165421016514301
+optimizer初始化成功!
+Training Progress:   0%|                                                                                                                     | 0/10 [00:00<?, ?it/s]/home/lg/new_push_pull/utils/train_utils.py:210: FutureWarning: `torch.cuda.amp.autocast(args...)` is deprecated. Please use `torch.amp.autocast('cuda', args...)` instead.
+  with autocast(enabled=use_amp):
+Training Progress:   0%|                                                                                                                     | 0/10 [00:04<?, ?it/s]
+Error in experiment c=0.8564: cusolver error: CUSOLVER_STATUS_INTERNAL_ERROR, when calling `cusolverDnCreate(handle)`. If you keep seeing this error, you may use `torch.backends.cuda.preferred_linalg_library()` to try linear algebra operators with other supported backends. See https://pytorch.org/docs/stable/backends.html#torch.backends.cuda.preferred_linalg_library
+
+============================================================
+Running experiment 2/5: c=0.9146
+============================================================
+
+=== Generating neighbor topology with n=16, seed=42 ===
+Topology properties:
+  Matrix A: kappa=3.0439, beta=0.8812
+  Matrix B: kappa=3.4180, beta=0.8975
+
+=== Computing learning rates with strategy 'custom' ===
+Learning rate distribution:
+  Total: 0.112000 (expected: 0.112000)
+  Min: 0.001077, Max: 0.025544
+  Mean: 0.007000, Std: 0.005233
+
+Theoretical convergence factor c = 0.914608
+Saved experiment configuration to: ./custom_experiments/custom_strategy_20250722_175517_neighbor_16nodes/experiment_20250722_175527_neighbor_custom_16nodes/config.yaml
+
+=== Running 1 repetition(s) ===
+
+Repetition 1/1
+使用异质性数据集
+函数内设置种子为: 42
+root: ./custom_experiments/custom_strategy_20250722_175517_neighbor_16nodes/experiment_20250722_175527_neighbor_custom_16nodes
+使用 PushPull 算法, 这里只记录grad_nrom
+直接从第一次 closure() 调用中获取初始值
+Initial grad norm: 0.005789513554191217, Initial avg grad norm: 0.0015560282627120614
+optimizer初始化成功!
+Training Progress:   0%|                                                                                                                     | 0/10 [00:04<?, ?it/s]
+Error in experiment c=0.9146: cusolver error: CUSOLVER_STATUS_INTERNAL_ERROR, when calling `cusolverDnCreate(handle)`. If you keep seeing this error, you may use `torch.backends.cuda.preferred_linalg_library()` to try linear algebra operators with other supported backends. See https://pytorch.org/docs/stable/backends.html#torch.backends.cuda.preferred_linalg_library
+
+============================================================
+Running experiment 3/5: c=1.0158
+============================================================
+
+=== Generating neighbor topology with n=16, seed=42 ===
+Topology properties:
+  Matrix A: kappa=3.0439, beta=0.8812
+  Matrix B: kappa=3.4180, beta=0.8975
+
+=== Computing learning rates with strategy 'custom' ===
+Learning rate distribution:
+  Total: 0.112000 (expected: 0.112000)
+  Min: 0.001182, Max: 0.033264
+  Mean: 0.007000, Std: 0.007155
+
+Theoretical convergence factor c = 1.015799
+Saved experiment configuration to: ./custom_experiments/custom_strategy_20250722_175517_neighbor_16nodes/experiment_20250722_175536_neighbor_custom_16nodes/config.yaml
+
+=== Running 1 repetition(s) ===
+
+Repetition 1/1
+使用异质性数据集
+函数内设置种子为: 42
+root: ./custom_experiments/custom_strategy_20250722_175517_neighbor_16nodes/experiment_20250722_175536_neighbor_custom_16nodes
+使用 PushPull 算法, 这里只记录grad_nrom
+直接从第一次 closure() 调用中获取初始值
+Initial grad norm: 0.005789513554191217, Initial avg grad norm: 0.0015560282627120614
+optimizer初始化成功!
+Training Progress:   0%|                                                                                                                     | 0/10 [00:04<?, ?it/s]
+Error in experiment c=1.0158: cusolver error: CUSOLVER_STATUS_INTERNAL_ERROR, when calling `cusolverDnCreate(handle)`. If you keep seeing this error, you may use `torch.backends.cuda.preferred_linalg_library()` to try linear algebra operators with other supported backends. See https://pytorch.org/docs/stable/backends.html#torch.backends.cuda.preferred_linalg_library
+
+============================================================
+Running experiment 4/5: c=1.1170
+============================================================
+
+=== Generating neighbor topology with n=16, seed=42 ===
+Topology properties:
+  Matrix A: kappa=3.0439, beta=0.8812
+  Matrix B: kappa=3.4180, beta=0.8975
+
+=== Computing learning rates with strategy 'custom' ===
+Learning rate distribution:
+  Total: 0.112000 (expected: 0.112000)
+  Min: 0.001833, Max: 0.011369
+  Mean: 0.007000, Std: 0.002854
+
+Theoretical convergence factor c = 1.116991
+Saved experiment configuration to: ./custom_experiments/custom_strategy_20250722_175517_neighbor_16nodes/experiment_20250722_175545_neighbor_custom_16nodes/config.yaml
+
+=== Running 1 repetition(s) ===
+
+Repetition 1/1
+使用异质性数据集
+函数内设置种子为: 42
+root: ./custom_experiments/custom_strategy_20250722_175517_neighbor_16nodes/experiment_20250722_175545_neighbor_custom_16nodes
+使用 PushPull 算法, 这里只记录grad_nrom
+直接从第一次 closure() 调用中获取初始值
+Initial grad norm: 0.005789513554191217, Initial avg grad norm: 0.0015560282627120614
+optimizer初始化成功!
+Training Progress:   0%|                                                                                                                     | 0/10 [00:04<?, ?it/s]
+Error in experiment c=1.1170: cusolver error: CUSOLVER_STATUS_INTERNAL_ERROR, when calling `cusolverDnCreate(handle)`. If you keep seeing this error, you may use `torch.backends.cuda.preferred_linalg_library()` to try linear algebra operators with other supported backends. See https://pytorch.org/docs/stable/backends.html#torch.backends.cuda.preferred_linalg_library
+^CException ignored in: <function _MultiProcessingDataLoaderIter.__del__ at 0x7a6cf89b5c60>
+Traceback (most recent call last):
+  File "/home/lg/.local/lib/python3.12/site-packages/torch/utils/data/dataloader.py", line 1663, in __del__
+    self._shutdown_workers()
+  File "/home/lg/.local/lib/python3.12/site-packages/torch/utils/data/dataloader.py", line 1608, in _shutdown_workers
+    self._worker_result_queue.put((None, None))
+  File "/opt/miniconda3/lib/python3.12/multiprocessing/queues.py", line 95, in put
+    self._buffer.append(obj)
+KeyboardInterrupt: 
+
+============================================================
+Running experiment 5/5: c=1.1925
+============================================================
+
+=== Generating neighbor topology with n=16, seed=42 ===
+Topology properties:
+  Matrix A: kappa=3.0439, beta=0.8812
+  Matrix B: kappa=3.4180, beta=0.8975
+
+=== Computing learning rates with strategy 'custom' ===
+Learning rate distribution:
+  Total: 0.112000 (expected: 0.112000)
+  Min: 0.001547, Max: 0.015332
+  Mean: 0.007000, Std: 0.004241
+
+Theoretical convergence factor c = 1.192521
+Saved experiment configuration to: ./custom_experiments/custom_strategy_20250722_175517_neighbor_16nodes/experiment_20250722_175554_neighbor_custom_16nodes/config.yaml
+
+=== Running 1 repetition(s) ===
+
+Repetition 1/1
+使用异质性数据集
+函数内设置种子为: 42
+root: ./custom_experiments/custom_strategy_20250722_175517_neighbor_16nodes/experiment_20250722_175554_neighbor_custom_16nodes
+使用 PushPull 算法, 这里只记录grad_nrom
+直接从第一次 closure() 调用中获取初始值
+Initial grad norm: 0.005789513554191217, Initial avg grad norm: 0.0015560282627120614
+optimizer初始化成功!
+Training Progress:   0%|                                                                                                                     | 0/10 [00:04<?, ?it/s]
+Error in experiment c=1.1925: cusolver error: CUSOLVER_STATUS_INTERNAL_ERROR, when calling `cusolverDnCreate(handle)`. If you keep seeing this error, you may use `torch.backends.cuda.preferred_linalg_library()` to try linear algebra operators with other supported backends. See https://pytorch.org/docs/stable/backends.html#torch.backends.cuda.preferred_linalg_library
+
+=== All experiments completed ===
+Results saved in: ./custom_experiments/custom_strategy_20250722_175517_neighbor_16nodes
+Summary saved to: ./custom_experiments/custom_strategy_20250722_175517_neighbor_16nodes/experiment_summary.json
+(base) lg@user-NULL:~/new_push_pull$ 

@@ -1,0 +1,57 @@
+experiment_info:
+  timestamp: '20250722_175554'
+  experiment_name: experiment_20250722_175554_neighbor_custom_16nodes
+  output_directory: ./custom_experiments/custom_strategy_20250722_175517_neighbor_16nodes/experiment_20250722_175554_neighbor_custom_16nodes
+topology_parameters:
+  topology: neighbor
+  n: 16
+  matrix_seed: 42
+  kappa_a: 3.0439457443122366
+  kappa_b: 3.417960286115987
+  beta_a: 0.8812264032826911
+  beta_b: 0.8975362193664002
+learning_rate_parameters:
+  lr_basic: 0.007
+  strategy: custom
+  random_seed: null
+  lr_total: 0.11200000000000002
+  c_value: 1.1925210799755104
+  lr_distribution:
+    min: 0.0015473148224100515
+    max: 0.015331826624036376
+    mean: 0.007
+    std: 0.004240827885498014
+    values:
+    - 0.0015473148224100515
+    - 0.005959272809098092
+    - 0.005354240260573452
+    - 0.007883536060273416
+    - 0.0069322221609271735
+    - 0.0019053005000646786
+    - 0.005952444970195571
+    - 0.00649300218561651
+    - 0.01233080343520585
+    - 0.015331826624036376
+    - 0.002303337735083282
+    - 0.011553687298280822
+    - 0.0029590295043663653
+    - 0.00473591402853535
+    - 0.01491842485124828
+    - 0.0058396427540847295
+training_parameters:
+  dataset_name: MNIST
+  batch_size: 128
+  num_epochs: 10
+  alpha: 1000.0
+  use_hetero: true
+  algorithm: PushPull
+experiment_parameters:
+  repetitions: 1
+  remark: custom_c=1.1925
+  device: cuda:0
+  training_seeds:
+  - 42
+generated_files:
+  config_file: config.yaml
+  averaged_grad_norm: null
+  individual_runs: 1 pairs of CSV files (loss and grad_norm)

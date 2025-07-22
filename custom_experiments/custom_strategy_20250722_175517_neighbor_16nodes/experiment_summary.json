@@ -1,0 +1,31 @@
+{
+  "experiment_info": {
+    "timestamp": "20250722_175517",
+    "output_directory": "./custom_experiments/custom_strategy_20250722_175517_neighbor_16nodes",
+    "topology": "neighbor",
+    "n": 16,
+    "matrix_seed": 42
+  },
+  "c_values": {
+    "count": 5,
+    "min": 0.8564305081425201,
+    "max": 1.1925210799755106,
+    "values": [
+      0.8564305081425201,
+      0.9146078151706278,
+      1.0157993840926687,
+      1.1169909539246463,
+      1.1925210799755106
+    ]
+  },
+  "training_parameters": {
+    "lr_basic": 0.007,
+    "dataset_name": "MNIST",
+    "batch_size": 128,
+    "num_epochs": 10,
+    "alpha": 1000.0,
+    "use_hetero": true,
+    "repetitions": 1
+  },
+  "results_summary": []
+}

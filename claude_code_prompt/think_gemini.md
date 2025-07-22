@@ -1,3 +1,76 @@
+1. 对于行随机矩阵$A$, 列随机矩阵$B$
+2. 它们都是$n*n$的矩阵
+3. $\kappa_A, \beta_A, \kappa_B, \beta_B, \pi_A, \pi_B$的计算方式如下所示:
+```python
+import networkx as nx
+from mpmath import mp
+import matplotlib.pyplot as plt
+import numpy as np
+def get_right_perron(W):
+    """ 对于列随机矩阵，获得矩阵的右perron向量 """
+    c = np.linalg.eig(W) 
+    eigenvalues = c[0]#特征值，向量
+    eigenvectors = c[1]#特征向量，矩阵
+    max_eigen = np.abs(eigenvalues).argmax()#返回绝对值最大的特征值对应的位置
+    vector = c[1][:,max_eigen]#max_eigen那一列
+    return np.abs(vector / np.sum(vector))#单位化
+
+#获得矩阵的左perron向量
+def get_left_perron(W):
+    """ 对于行随机矩阵，获得矩阵的左perron向量 """
+    return get_right_perron(W.T)#计算转置的右perron即可
+
+def compute_kappa_row(A):
+    pi=get_left_perron(A)
+    return np.max(pi)/np.min(pi)
+
+def compute_kappa_col(B):
+    pi=get_right_perron(B)
+    return np.max(pi)/np.min(pi)
+
+#计算第二大特征值的模长
+def compute_2st_eig_value(A):
+    return abs(np.linalg.eigvals(A)[1])
+
+def compute_beta_row(A, precision=64):
+    mp.dps = precision  # 设置计算精度
+    n = A.shape[0]
+    pi = get_left_perron(A)
+    one = np.ones(n)
+    if not nx.is_strongly_connected(nx.DiGraph(A)):
+        print("不是强联通")
+    matrix = A - np.outer(one, pi)
+    diag1 = np.diag(np.sqrt(pi))
+    diag1_inverse = np.diag(1 / np.sqrt(pi))
+    result = np.linalg.norm(diag1 @ matrix @ diag1_inverse, 2)
+    return min(result, 1)  # 裁剪结果不超过1
+
+def compute_beta_col(B, precision=64):
+    mp.dps = precision  # 设置计算精度
+    n = B.shape[0]
+    pi = get_right_perron(B)
+    one = np.ones(n)
+    if not nx.is_strongly_connected(nx.DiGraph(B)):
+        print("不是强联通")
+    matrix = B - np.outer(pi, one)
+    diag1 = np.diag(np.sqrt(pi))
+    diag1_inverse = np.diag(1 / np.sqrt(pi))
+    result = np.linalg.norm(diag1_inverse @ matrix @ diag1, 2)
+    return min(result, 1)  # 裁剪结果不超过1
+```
+4. 现在定义$c = n \pi_A^{T} D \pi_B$, $D$是一个我们选定的对角矩阵, 并且对角元素的求和一定是$n$
++ 那么$D$可以选:
+    + identity: I
+    + diag(pi_A)^{-1}  （还需要标准化）
+    + diag(pi_B)^{-1}
+    + 其他方法
+5. 我想找到一种方法，对于给定的$A,B$. 有一种方法可以生成一组$D$, 对应的$c$是递增的
+    + 从编程上来说, 可以考虑的方法是多次采样, 然后得到排序，然后根据给定的序列长度(k), 从排序中选出大概均分$k$的即可
+    + 我还想问有没有数学上的定理可以做到这一点？
+        + 不一定是优化问题建模，因为还是变成了一个数值方法
+        + 有没有理论上的方法？
+这里有一个采样方法的编程实现:
+```python
 """
 Utility functions for generating diagonal matrices D with varying convergence factors c.
 """
@@ -203,3 +276,4 @@ def generate_specific_d_matrices(
     results.sort(key=lambda x: x[1])
     
     return results
+```
