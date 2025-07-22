@@ -45,6 +45,7 @@ def run_custom_strategy_experiments(
     device: str = "cuda:0",
     output_dir: str = "./custom_experiments",
     use_specific_strategies: bool = False,
+    distribution: str = "uniform",
     **topology_kwargs
 ) -> Dict[str, Any]:
     """
@@ -67,6 +68,7 @@ def run_custom_strategy_experiments(
         device: GPU device
         output_dir: Base directory for saving results
         use_specific_strategies: If True, test specific strategies instead of c range
+        distribution: "uniform" for uniformly spaced c values, "vertices" for simplex vertices
         **topology_kwargs: Additional topology parameters
         
     Returns:
@@ -92,9 +94,9 @@ def run_custom_strategy_experiments(
         d_matrix_results = generate_specific_d_matrices(A, B)
         experiments = [(d, c, name) for d, c, name in d_matrix_results]
     else:
-        print(f"\n=== Generating {num_c_values} D matrices with increasing c values ===")
+        print(f"\n=== Generating {num_c_values} D matrices with increasing c values (distribution={distribution}) ===")
         d_matrix_results = generate_d_matrices_with_increasing_c(
-            A, B, num_c_values, c_min, c_max
+            A, B, num_c_values, c_min, c_max, distribution=distribution
         )
         experiments = [(d, c, f"c={c:.4f}") for d, c in d_matrix_results]
     
@@ -267,6 +269,9 @@ def main():
                         help="Maximum c value (auto if not specified)")
     parser.add_argument("--use_specific_strategies", action="store_true",
                         help="Test specific strategies instead of c range")
+    parser.add_argument("--distribution", type=str, default="uniform",
+                        choices=["uniform", "vertices"],
+                        help="Distribution mode: 'uniform' for uniformly spaced c values, 'vertices' for simplex vertices")
     
     # Training parameters
     parser.add_argument("--dataset_name", type=str, required=True,
@@ -310,6 +315,7 @@ def main():
         device=args.device,
         output_dir=args.output_dir,
         use_specific_strategies=args.use_specific_strategies,
+        distribution=args.distribution,
         k=args.k
     )
 

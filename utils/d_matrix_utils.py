@@ -57,26 +57,52 @@ def generate_random_d_diagonal(n: int, seed: int = None) -> np.ndarray:
     return d_diagonal
 
 
-def generate_d_matrices_with_increasing_c(
+def generate_d_from_convex_combination(
+    d_min: np.ndarray,
+    d_max: np.ndarray,
+    alpha: float,
+    n: int
+) -> np.ndarray:
+    """
+    Generate D diagonal from convex combination of two extreme D vectors.
+    
+    Args:
+        d_min: D vector corresponding to minimum c
+        d_max: D vector corresponding to maximum c
+        alpha: Interpolation parameter in [0, 1]
+        n: Number of nodes
+        
+    Returns:
+        Interpolated D diagonal that sums to n
+    """
+    # Compute convex combination
+    d_new = (1 - alpha) * d_min + alpha * d_max
+    
+    # Ensure it sums to n (should already be the case, but for numerical stability)
+    d_new = d_new * n / np.sum(d_new)
+    
+    return d_new
+
+
+def generate_d_matrices_theoretical(
     A: np.ndarray,
     B: np.ndarray,
     num_c_values: int,
-    c_min: float = None,
-    c_max: float = None,
-    num_samples: int = 2000,
-    seed: int = 42
+    distribution: str = "uniform"
 ) -> List[Tuple[np.ndarray, float]]:
     """
-    Generate D matrices (as diagonal arrays) that produce increasing c values.
+    Generate D matrices using theoretical approach based on extreme points of the simplex.
+    
+    This method computes the exact range of c values and can generate D matrices
+    in two modes:
+    - "uniform": Generate uniformly distributed c values via linear interpolation
+    - "vertices": Use the actual simplex vertices (may be non-uniform)
     
     Args:
         A: Row-stochastic matrix
         B: Column-stochastic matrix
         num_c_values: Number of different c values to generate
-        c_min: Minimum c value (if None, will be determined automatically)
-        c_max: Maximum c value (if None, will be determined automatically)
-        num_samples: Number of random samples to generate for finding c range
-        seed: Random seed
+        distribution: "uniform" or "vertices" - distribution mode for c values
         
     Returns:
         List of tuples (d_diagonal, c_value) sorted by increasing c
@@ -85,75 +111,118 @@ def generate_d_matrices_with_increasing_c(
     pi_a = get_left_perron(A)
     pi_b = get_right_perron(B)
     
-    # If c_min or c_max not specified, find the range by sampling
-    if c_min is None or c_max is None:
-        np.random.seed(seed)
-        c_values_sampled = []
-        
-        # Sample random D matrices to find c range
-        for i in range(num_samples):
-            d_diagonal = generate_random_d_diagonal(n, seed=seed + i)
-            c = compute_c_from_d_diagonal(d_diagonal, pi_a, pi_b, n)
-            c_values_sampled.append(c)
-        
-        if c_min is None:
-            c_min = min(c_values_sampled)
-        if c_max is None:
-            c_max = max(c_values_sampled)
-    
-    # Generate specific c values
-    if num_c_values == 1:
-        target_c_values = [(c_min + c_max) / 2]
-    else:
-        target_c_values = np.linspace(c_min, c_max, num_c_values)
-    
-    # For each target c value, find a D matrix that produces it
-    results = []
-    
-    for target_c in target_c_values:
-        # Use optimization to find D diagonal that produces target c
-        best_d_diagonal = None
-        best_c_diff = float('inf')
-        
-        # Try multiple random initializations
-        for attempt in range(100):
-            # Start with random D diagonal
-            d_diagonal_init = generate_random_d_diagonal(n, seed=seed + attempt + num_samples)
-            
-            # Define objective function (minimize difference from target c)
-            def objective(scale):
-                # Scale one element while keeping sum = n
-                d_test = d_diagonal_init.copy()
-                d_test[0] *= scale
-                d_test = d_test * n / np.sum(d_test)  # Renormalize
-                
-                c_test = compute_c_from_d_diagonal(d_test, pi_a, pi_b, n)
-                return abs(c_test - target_c)
-            
-            # Optimize
-            result = minimize_scalar(objective, bounds=(0.1, 10), method='bounded')
-            
-            # Get the optimized D diagonal
-            d_diagonal = d_diagonal_init.copy()
-            d_diagonal[0] *= result.x
-            d_diagonal = d_diagonal * n / np.sum(d_diagonal)
-            
-            # Compute actual c value
-            c_actual = compute_c_from_d_diagonal(d_diagonal, pi_a, pi_b, n)
-            c_diff = abs(c_actual - target_c)
-            
-            if c_diff < best_c_diff:
-                best_c_diff = c_diff
-                best_d_diagonal = d_diagonal
-        
-        # Compute final c value for best D diagonal
-        c_final = compute_c_from_d_diagonal(best_d_diagonal, pi_a, pi_b, n)
-        results.append((best_d_diagonal, c_final))
+    # Step 1: Compute all extreme c values
+    # c_j = n^2 * pi_A[j] * pi_B[j] when D has all mass on j-th diagonal
+    c_extremes = []
+    for j in range(n):
+        c_j = n * n * pi_a[j] * pi_b[j]
+        d_j = np.zeros(n)
+        d_j[j] = n
+        c_extremes.append((c_j, j, d_j))
     
     # Sort by c value
-    results.sort(key=lambda x: x[1])
+    c_extremes.sort(key=lambda x: x[0])
+    
+    if distribution == "vertices":
+        # Return vertices mode
+        results = []
+        
+        if num_c_values >= n:
+            # Return all vertices
+            for c_j, j, d_j in c_extremes:
+                results.append((d_j, c_j))
+        else:
+            # Select num_c_values vertices with most diverse c values
+            # Use a greedy approach to maximize spacing
+            selected_indices = []
+            
+            # Always include min and max
+            selected_indices.append(0)
+            if num_c_values > 1:
+                selected_indices.append(n - 1)
+            
+            # Fill in remaining slots by maximizing minimum distance
+            while len(selected_indices) < num_c_values:
+                best_idx = -1
+                best_min_dist = -1
+                
+                for i in range(1, n - 1):
+                    if i not in selected_indices:
+                        # Calculate minimum distance to already selected points
+                        min_dist = float('inf')
+                        for j in selected_indices:
+                            dist = abs(c_extremes[i][0] - c_extremes[j][0])
+                            min_dist = min(min_dist, dist)
+                        
+                        if min_dist > best_min_dist:
+                            best_min_dist = min_dist
+                            best_idx = i
+                
+                if best_idx >= 0:
+                    selected_indices.append(best_idx)
+            
+            # Sort selected indices and create results
+            selected_indices.sort()
+            for idx in selected_indices:
+                c_j, j, d_j = c_extremes[idx]
+                results.append((d_j, c_j))
+                
+    else:  # distribution == "uniform"
+        # Use uniform interpolation between min and max
+        c_min, j_min, d_min = c_extremes[0]
+        c_max, j_max, d_max = c_extremes[-1]
+        
+        results = []
+        
+        if num_c_values == 1:
+            # Single value: use midpoint
+            alpha = 0.5
+            d_diagonal = generate_d_from_convex_combination(d_min, d_max, alpha, n)
+            c = compute_c_from_d_diagonal(d_diagonal, pi_a, pi_b, n)
+            results.append((d_diagonal, c))
+        else:
+            # Multiple values: use linear interpolation
+            alphas = np.linspace(0, 1, num_c_values)
+            
+            for alpha in alphas:
+                d_diagonal = generate_d_from_convex_combination(d_min, d_max, alpha, n)
+                c = compute_c_from_d_diagonal(d_diagonal, pi_a, pi_b, n)
+                results.append((d_diagonal, c))
     
     return results
+
+
+def generate_d_matrices_with_increasing_c(
+    A: np.ndarray,
+    B: np.ndarray,
+    num_c_values: int,
+    c_min: float = None,
+    c_max: float = None,
+    num_samples: int = 2000,
+    seed: int = 42,
+    distribution: str = "uniform"
+) -> List[Tuple[np.ndarray, float]]:
+    """
+    Generate D matrices (as diagonal arrays) that produce increasing c values.
+    
+    This function now uses the theoretical approach by default, which is more
+    efficient and accurate than the previous sampling-based method.
+    
+    Args:
+        A: Row-stochastic matrix
+        B: Column-stochastic matrix
+        num_c_values: Number of different c values to generate
+        c_min: Minimum c value (if None, will be determined automatically)
+        c_max: Maximum c value (if None, will be determined automatically)
+        num_samples: Number of random samples to generate for finding c range (unused in theoretical approach)
+        seed: Random seed (unused in theoretical approach)
+        distribution: "uniform" for uniformly spaced c values, "vertices" for simplex vertices
+        
+    Returns:
+        List of tuples (d_diagonal, c_value) sorted by increasing c
+    """
+    # Use theoretical approach
+    return generate_d_matrices_theoretical(A, B, num_c_values, distribution)
 
 
 def generate_specific_d_matrices(
