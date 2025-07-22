@@ -44,3 +44,6 @@ training/__pycache__/training_loop.cpython-312.pyc
 nohup3.out
 nohup2.out
 nohup.out
+
+
+**/*.pyc 

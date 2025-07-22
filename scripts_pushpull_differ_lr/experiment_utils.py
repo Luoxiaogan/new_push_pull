@@ -85,7 +85,8 @@ def compute_learning_rates(
     B: np.ndarray,
     lr_basic: float,
     n: int,
-    random_seed: Optional[int] = None
+    random_seed: Optional[int] = None,
+    d_diagonal: Optional[np.ndarray] = None
 ) -> List[float]:
     """
     Compute learning rate list based on strategy.
@@ -97,6 +98,7 @@ def compute_learning_rates(
         lr_basic: Base learning rate (total will be lr_basic * n)
         n: Number of nodes
         random_seed: Random seed for "random" strategy
+        d_diagonal: Diagonal values for "custom" strategy
         
     Returns:
         List of learning rates for each node
@@ -131,8 +133,19 @@ def compute_learning_rates(
         random_values = random_values * n / np.sum(random_values)
         return [lr_basic * r for r in random_values]
     
+    elif strategy == "custom":
+        if d_diagonal is None:
+            raise ValueError("d_diagonal must be provided when strategy='custom'")
+        
+        if len(d_diagonal) != n:
+            raise ValueError(f"d_diagonal length ({len(d_diagonal)}) must match number of nodes ({n})")
+        
+        # d_diagonal should already be normalized to sum to n
+        # Convert to learning rates
+        return [lr_basic * d for d in d_diagonal]
+    
     else:
-        raise ValueError(f"Invalid strategy '{strategy}'. Valid options: uniform, pi_a_inverse, pi_b_inverse, random")
+        raise ValueError(f"Invalid strategy '{strategy}'. Valid options: uniform, pi_a_inverse, pi_b_inverse, random, custom")
 
 
 def compute_c_value(

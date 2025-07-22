@@ -49,6 +49,7 @@ def run_distributed_optimization_experiment(
     remark: str = "",
     device: str = "cuda:0",
     output_dir: str = "./experiments",
+    d_diagonal: Optional[np.ndarray] = None,
     
     # Additional topology parameters
     **kwargs
@@ -61,7 +62,7 @@ def run_distributed_optimization_experiment(
         n: Number of nodes
         matrix_seed: Seed for topology generation
         lr_basic: Base learning rate (total will be lr_basic * n)
-        strategy: Learning rate strategy ("uniform", "pi_a_inverse", "pi_b_inverse", "random")
+        strategy: Learning rate strategy ("uniform", "pi_a_inverse", "pi_b_inverse", "random", "custom")
         random_seed: Random seed for "random" strategy
         dataset_name: Dataset to use ("MNIST" or "CIFAR10")
         batch_size: Batch size for training
@@ -72,6 +73,7 @@ def run_distributed_optimization_experiment(
         remark: Experiment identifier
         device: GPU device
         output_dir: Base directory for saving results
+        d_diagonal: Diagonal values for "custom" strategy
         **kwargs: Additional parameters for specific topologies
         
     Returns:
@@ -98,7 +100,7 @@ def run_distributed_optimization_experiment(
     
     # Compute learning rates
     print(f"\n=== Computing learning rates with strategy '{strategy}' ===")
-    lr_list = compute_learning_rates(strategy, A, B, lr_basic, n, random_seed)
+    lr_list = compute_learning_rates(strategy, A, B, lr_basic, n, random_seed, d_diagonal)
     lr_total = sum(lr_list)
     print(f"Learning rate distribution:")
     print(f"  Total: {lr_total:.6f} (expected: {lr_basic * n:.6f})")
@@ -292,7 +294,7 @@ def main():
     # Learning rate parameters
     parser.add_argument("--lr_basic", type=float, required=True, help="Base learning rate")
     parser.add_argument("--strategy", type=str, required=True,
-                        choices=["uniform", "pi_a_inverse", "pi_b_inverse", "random"],
+                        choices=["uniform", "pi_a_inverse", "pi_b_inverse", "random", "custom"],
                         help="Learning rate strategy")
     parser.add_argument("--random_seed", type=int, default=None,
                         help="Random seed for 'random' strategy")
