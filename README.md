@@ -1,2 +1,2 @@
-# new_push_pull
-new push pull project, for others
+# ICML2025_project
+This is for the paper to ICML2025
