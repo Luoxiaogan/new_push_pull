@@ -1,0 +1,58 @@
+experiment_info:
+  timestamp: '20250722_170657'
+  experiment_name: experiment_20250722_170657_neighbor_uniform_16nodes
+  output_directory: ./my_experiments/experiment_20250722_170657_neighbor_uniform_16nodes
+topology_parameters:
+  topology: neighbor
+  n: 16
+  matrix_seed: 42
+  kappa_a: 3.0439457443122366
+  kappa_b: 3.417960286115987
+  beta_a: 0.8812264032826911
+  beta_b: 0.8975362193664002
+learning_rate_parameters:
+  lr_basic: 0.007
+  strategy: uniform
+  random_seed: null
+  lr_total: 0.112
+  c_value: 1.016689049546315
+  lr_distribution:
+    min: 0.007
+    max: 0.007
+    mean: 0.007
+    std: 0.0
+    values:
+    - 0.007
+    - 0.007
+    - 0.007
+    - 0.007
+    - 0.007
+    - 0.007
+    - 0.007
+    - 0.007
+    - 0.007
+    - 0.007
+    - 0.007
+    - 0.007
+    - 0.007
+    - 0.007
+    - 0.007
+    - 0.007
+training_parameters:
+  dataset_name: MNIST
+  batch_size: 128
+  num_epochs: 10
+  alpha: 1000.0
+  use_hetero: true
+  algorithm: PushPull
+experiment_parameters:
+  repetitions: 2
+  remark: test_uniform
+  device: cuda:0
+  training_seeds:
+  - 42
+  - 43
+generated_files:
+  config_file: config.yaml
+  averaged_grad_norm: averaged_grad_norm.csv
+  individual_runs: 2 pairs of CSV files (loss and grad_norm)

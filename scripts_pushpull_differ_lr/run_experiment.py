@@ -110,54 +110,9 @@ def run_distributed_optimization_experiment(
     print(f"\nTheoretical convergence factor c = {c_value:.6f}")
     
     # Convert matrices to torch tensors
-    A_tensor = torch.tensor(A, dtype=torch.float32)
-    B_tensor = torch.tensor(B, dtype=torch.float32)
-    
-    # Run multiple repetitions
-    print(f"\n=== Running {repetitions} repetition(s) ===")
-    grad_norm_dfs = []
-    
-    for rep in range(repetitions):
-        print(f"\nRepetition {rep + 1}/{repetitions}")
-        
-        # Use different seed for each repetition
-        training_seed = 42 + rep  # Base seed + repetition index
-        
-        # Run training
-        df = train_track_grad_norm_with_hetero_different_learning_rate(
-            algorithm="PushPull",
-            lr_list=lr_list,
-            A=A_tensor,
-            B=B_tensor,
-            dataset_name=dataset_name,
-            batch_size=batch_size,
-            num_epochs=num_epochs,
-            remark=remark,
-            alpha=alpha,
-            root=exp_dir,  # Use experiment-specific directory
-            use_hetero=use_hetero,
-            device=device,
-            seed=training_seed
-        )
-        
-        # The function returns gradient norm data
-        grad_norm_dfs.append(df)
-        
-        # Clear GPU memory if needed
-        if device.startswith("cuda"):
-            torch.cuda.empty_cache()
-    
-    # Average results across repetitions
-    print(f"\n=== Averaging results ===")
-    if len(grad_norm_dfs) > 1:
-        avg_df = average_gradient_norm_results(grad_norm_dfs)
-        # Save averaged results
-        avg_output_path = os.path.join(exp_dir, "averaged_grad_norm.csv")
-        avg_df.to_csv(avg_output_path, index=False)
-        print(f"Saved averaged results to: {avg_output_path}")
-    else:
-        avg_df = grad_norm_dfs[0]
-    
+    # A_tensor = torch.tensor(A, dtype=torch.float32)
+    # B_tensor = torch.tensor(B, dtype=torch.float32)
+
     # Create experiment configuration
     config = {
         "experiment_info": {
@@ -214,6 +169,108 @@ def run_distributed_optimization_experiment(
     with open(config_path, 'w') as f:
         yaml.dump(config, f, default_flow_style=False, sort_keys=False)
     print(f"Saved experiment configuration to: {config_path}")
+    
+    # Run multiple repetitions
+    print(f"\n=== Running {repetitions} repetition(s) ===")
+    grad_norm_dfs = []
+    
+    for rep in range(repetitions):
+        print(f"\nRepetition {rep + 1}/{repetitions}")
+        
+        # Use different seed for each repetition
+        training_seed = 42 + rep  # Base seed + repetition index
+        
+        # Run training
+        df = train_track_grad_norm_with_hetero_different_learning_rate(
+            algorithm="PushPull",
+            lr_list=lr_list,
+            A=A,
+            B=B,
+            dataset_name=dataset_name,
+            batch_size=batch_size,
+            num_epochs=num_epochs,
+            remark=remark,
+            alpha=alpha,
+            root=exp_dir,  # Use experiment-specific directory
+            use_hetero=use_hetero,
+            device=device,
+            seed=training_seed
+        )
+        
+        # The function returns gradient norm data
+        grad_norm_dfs.append(df)
+        
+        # Clear GPU memory if needed
+        if device.startswith("cuda"):
+            torch.cuda.empty_cache()
+    
+    # Average results across repetitions
+    print(f"\n=== Averaging results ===")
+    if len(grad_norm_dfs) > 1:
+        avg_df = average_gradient_norm_results(grad_norm_dfs)
+        # Save averaged results
+        avg_output_path = os.path.join(exp_dir, "averaged_grad_norm.csv")
+        avg_df.to_csv(avg_output_path, index=False)
+        print(f"Saved averaged results to: {avg_output_path}")
+    else:
+        avg_df = grad_norm_dfs[0]
+    
+    # Create experiment configuration
+    # config = {
+    #     "experiment_info": {
+    #         "timestamp": timestamp,
+    #         "experiment_name": exp_name,
+    #         "output_directory": exp_dir
+    #     },
+    #     "topology_parameters": {
+    #         "topology": topology,
+    #         "n": n,
+    #         "matrix_seed": matrix_seed,
+    #         "kappa_a": float(kappa_a),
+    #         "kappa_b": float(kappa_b),
+    #         "beta_a": float(beta_a),
+    #         "beta_b": float(beta_b)
+    #     },
+    #     "learning_rate_parameters": {
+    #         "lr_basic": float(lr_basic),
+    #         "strategy": strategy,
+    #         "random_seed": random_seed,
+    #         "lr_total": float(lr_total),
+    #         "c_value": float(c_value),
+    #         "lr_distribution": {
+    #             "min": float(min(lr_list)),
+    #             "max": float(max(lr_list)),
+    #             "mean": float(np.mean(lr_list)),
+    #             "std": float(np.std(lr_list)),
+    #             "values": [float(lr) for lr in lr_list]
+    #         }
+    #     },
+    #     "training_parameters": {
+    #         "dataset_name": dataset_name,
+    #         "batch_size": batch_size,
+    #         "num_epochs": num_epochs,
+    #         "alpha": float(alpha),
+    #         "use_hetero": use_hetero,
+    #         "algorithm": "PushPull"
+    #     },
+    #     "experiment_parameters": {
+    #         "repetitions": repetitions,
+    #         "remark": remark,
+    #         "device": device,
+    #         "training_seeds": [42 + i for i in range(repetitions)]
+    #     },
+    #     "generated_files": {
+    #         "config_file": "config.yaml",
+    #         "averaged_grad_norm": "averaged_grad_norm.csv" if repetitions > 1 else None,
+    #         "individual_runs": f"{repetitions} pairs of CSV files (loss and grad_norm)"
+    #     }
+    # }
+    
+    # # Save configuration file
+    # config_path = os.path.join(exp_dir, "config.yaml")
+    # with open(config_path, 'w') as f:
+    #     yaml.dump(config, f, default_flow_style=False, sort_keys=False)
+    # print(f"Saved experiment configuration to: {config_path}")
     
     print(f"\nExperiment completed successfully!")
     print(f"All results saved in: {exp_dir}")
