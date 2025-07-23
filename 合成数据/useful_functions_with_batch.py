@@ -310,6 +310,152 @@ def generate_x_star(n, d, x_opt, sigma_h=10, seed=42):
     x_star = x_opt + noise
     return x_star
 
+
+def distribute_data_hetero(h, y, n, alpha=1000, seed=42):
+    """
+    使用Dirichlet分布将全局 h 和 y 异质地分配到 n 个节点
+    
+    Parameters:
+        h: 全局特征数据 (L_total, d)
+        y: 全局标签数据 (L_total,)
+        n: 节点数
+        alpha: Dirichlet分布参数，控制异质性程度
+               - 高 alpha (如 1000): 接近均匀分布
+               - 低 alpha (如 0.1): 高度异质
+        seed: 随机种子
+    
+    Returns:
+        h_tilde: 分配后的特征数据 (n, L_per_node, d)
+        y_tilde: 分配后的标签数据 (n, L_per_node)
+    """
+    np.random.seed(seed)
+    L_total = h.shape[0]
+    assert L_total % n == 0, "L_total 必须能被 n 整除"
+    L_per_node = L_total // n
+    d_dim = h.shape[1]
+    
+    # 使用 Dirichlet 分布生成每个节点的数据分布比例
+    # alpha 参数控制分布的集中程度
+    dirichlet_params = np.ones(n) * alpha
+    node_probs = np.random.dirichlet(dirichlet_params)
+    
+    # 为了保证每个节点都有 L_per_node 个样本，我们使用概率加权采样
+    # 首先创建一个节点分配数组
+    node_assignments = np.zeros(L_total, dtype=int)
+    
+    # 计算每个节点应该获得的样本数（基于 Dirichlet 概率）
+    expected_samples = (node_probs * L_total).astype(int)
+    
+    # 调整以确保总和正好是 L_total
+    diff = L_total - np.sum(expected_samples)
+    if diff > 0:
+        # 随机选择节点添加剩余样本
+        add_nodes = np.random.choice(n, size=diff, replace=True, p=node_probs)
+        for node in add_nodes:
+            expected_samples[node] += 1
+    elif diff < 0:
+        # 随机选择节点减少多余样本
+        remove_nodes = np.random.choice(n, size=-diff, replace=True, p=node_probs)
+        for node in remove_nodes:
+            if expected_samples[node] > 0:
+                expected_samples[node] -= 1
+    
+    # 打乱数据索引
+    shuffled_indices = np.random.permutation(L_total)
+    
+    # 分配样本到节点，但确保每个节点正好有 L_per_node 个样本
+    # 使用加权采样方法
+    h_tilde = np.zeros((n, L_per_node, d_dim))
+    y_tilde = np.zeros((n, L_per_node))
+    
+    # 为每个节点采样数据
+    for i in range(n):
+        # 使用节点概率作为权重进行采样
+        # 创建采样权重：该节点的概率 vs 其他节点的概率
+        sample_weights = np.ones(L_total)
+        
+        # 根据 Dirichlet 概率调整权重
+        # 这里我们使用一个简单的策略：根据节点概率调整采样权重
+        if i < n - 1:
+            # 对于前 n-1 个节点，使用概率加权采样
+            node_indices = np.random.choice(L_total, size=L_per_node, replace=False, 
+                                          p=sample_weights/np.sum(sample_weights))
+        else:
+            # 最后一个节点获取剩余的所有样本
+            used_indices = set()
+            for j in range(i):
+                used_indices.update(np.arange(j * L_per_node, (j + 1) * L_per_node))
+            remaining_indices = list(set(range(L_total)) - used_indices)
+            node_indices = np.random.choice(remaining_indices, size=L_per_node, replace=False)
+        
+        # 分配数据
+        h_tilde[i] = h[shuffled_indices[node_indices]]
+        y_tilde[i] = y[shuffled_indices[node_indices]]
+    
+    # 另一种更简单的实现：直接打乱后按块分配，但根据 Dirichlet 调整块内数据
+    # 这保证了每个节点有相同数量的样本，但数据分布是异质的
+    h_shuffled = h[shuffled_indices]
+    y_shuffled = y[shuffled_indices]
+    
+    # 重新分配以创建异质性
+    h_tilde_simple = np.zeros((n, L_per_node, d_dim))
+    y_tilde_simple = np.zeros((n, L_per_node))
+    
+    # 使用 Dirichlet 概率来决定每个节点获取哪些类型的数据
+    # 首先按标签值分组
+    positive_indices = np.where(y_shuffled == 1)[0]
+    negative_indices = np.where(y_shuffled == -1)[0]
+    
+    for i in range(n):
+        # 根据 Dirichlet 概率决定正负样本的比例
+        # 使用 Beta 分布（Dirichlet 的特例）来决定正样本比例
+        if alpha < 1:
+            # 低 alpha 创建更极端的分布
+            pos_ratio = np.random.beta(alpha, alpha)
+        else:
+            # 高 alpha 趋向均匀分布
+            # 添加一些随机性，但以节点概率为中心
+            pos_ratio = 0.5 + (node_probs[i] - 1/n) * 2  # 映射到 [0,1]
+            pos_ratio = np.clip(pos_ratio + np.random.normal(0, 1/alpha), 0, 1)
+        
+        n_positive = int(L_per_node * pos_ratio)
+        n_negative = L_per_node - n_positive
+        
+        # 确保有足够的样本
+        n_positive = min(n_positive, len(positive_indices) // n)
+        n_negative = L_per_node - n_positive
+        
+        # 采样
+        if n_positive > 0 and len(positive_indices) >= n_positive:
+            pos_samples = np.random.choice(positive_indices, size=n_positive, replace=False)
+            positive_indices = np.setdiff1d(positive_indices, pos_samples)
+        else:
+            pos_samples = np.array([], dtype=int)
+            n_positive = 0
+            n_negative = L_per_node
+        
+        if n_negative > 0 and len(negative_indices) >= n_negative:
+            neg_samples = np.random.choice(negative_indices, size=n_negative, replace=False)
+            negative_indices = np.setdiff1d(negative_indices, neg_samples)
+        else:
+            neg_samples = np.array([], dtype=int)
+        
+        # 组合并打乱
+        node_samples = np.concatenate([pos_samples, neg_samples])
+        if len(node_samples) < L_per_node:
+            # 如果样本不够，从剩余样本中补充
+            remaining = np.concatenate([positive_indices, negative_indices])
+            if len(remaining) > 0:
+                extra = np.random.choice(remaining, size=L_per_node - len(node_samples), replace=False)
+                node_samples = np.concatenate([node_samples, extra])
+        
+        np.random.shuffle(node_samples)
+        
+        h_tilde_simple[i] = h_shuffled[node_samples[:L_per_node]]
+        y_tilde_simple[i] = y_shuffled[node_samples[:L_per_node]]
+    
+    return h_tilde_simple, y_tilde_simple
+
 #---------------------------------------------------------------------------
 
 def generate_column_stochastic_matrix(n, seed_location=42, seed_value=43, seed_num=44):
