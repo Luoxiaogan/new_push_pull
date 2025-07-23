@@ -22,7 +22,7 @@ if project_root not in sys.path:
 
 from training.training_track_grad_norm_different_learning_rate import train_track_grad_norm_with_hetero_different_learning_rate
 from utils.algebra_utils import compute_kappa_row, compute_kappa_col, compute_beta_row, compute_beta_col
-from experiment_utils import (
+from .experiment_utils import (
     generate_topology_matrices,
     compute_learning_rates,
     compute_c_value,

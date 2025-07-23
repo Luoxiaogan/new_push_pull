@@ -6,6 +6,15 @@ from .network_utils import row_and_col_mat, ring1, ring2, ring3, ring4, get_xinm
 
 from .train_utils import get_first_batch, compute_loss_and_accuracy, simple_compute_loss_and_accuracy
 
+from .d_matrix_utils import (
+    compute_c_from_d_diagonal, 
+    generate_random_d_diagonal, 
+    generate_d_from_convex_combination,
+    generate_d_matrices_theoretical,
+    generate_d_matrices_with_increasing_c,
+    generate_specific_d_matrices,
+    )
+
 __all__ = [
     "get_right_perron",
     "get_left_perron",
@@ -28,4 +37,10 @@ __all__ = [
     "compute_loss_and_accuracy",
     "Row",
     "simple_compute_loss_and_accuracy",
+    "compute_c_from_d_diagonal",
+    "generate_random_d_diagonal",
+    "generate_d_from_convex_combination",
+    "generate_d_matrices_theoretical",
+    "generate_d_matrices_with_increasing_c",
+    "generate_specific_d_matrices",
 ]

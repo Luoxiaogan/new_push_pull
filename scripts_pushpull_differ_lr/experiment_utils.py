@@ -16,7 +16,7 @@ if project_root not in sys.path:
     sys.path.insert(0, project_root)
 
 from utils.algebra_utils import get_left_perron, get_right_perron
-from network_utils import (
+from .network_utils import (
     get_matrixs_from_exp_graph,
     generate_grid_matrices,
     generate_ring_matrices,
