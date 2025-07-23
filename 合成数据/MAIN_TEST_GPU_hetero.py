@@ -24,8 +24,11 @@ L_total = 1440000
 n = 16 # num_nodes, 6,12,18,24
 num_runs = 2 # 并行运行的次数
 
+# 144000/ 16 = 9000 
+# 每个节点的数据量
+
 # 异质性参数
-alpha = 1000  # 高值接近均匀分布，低值（如0.1）高度异质
+alpha = 0.1  # 高值接近均匀分布，低值（如0.1）高度异质
 
 topology = "neighbor"
 matrix_seed = 51583
@@ -117,7 +120,7 @@ config = {
 }
 
 # save config to a file
-config_file_path = f"/home/lg/new_push_pull/合成数据/output_dir/{strategy}_{topology}_hetero_alpha{alpha}_config.json"
+config_file_path = f"/home/lg/new_push_pull/合成数据/hetero_full/{strategy}_{topology}_hetero_alpha{alpha}_config.json"
 # Create directory if it doesn't exist
 print(f"\nSaving config to {config_file_path}")
 os.makedirs(os.path.dirname(config_file_path), exist_ok=True)
@@ -125,6 +128,9 @@ with open(config_file_path, 'w') as config_file:
     json.dump(config, config_file, indent=4)
 # 保存这个配置文件
 print("配置文件保存成功.")
+
+
+# 
 
 L1_avg_df = PushPull_with_batch_batched_gpu_differ_lr(
     A_gpu=A_gpu,
@@ -138,12 +144,12 @@ L1_avg_df = PushPull_with_batch_batched_gpu_differ_lr(
     lr_list=lr_list,
     sigma_n=0, # 或你的设定值
     max_it=max_it,
-    batch_size=200,
+    batch_size=9000 , # 每个节点9000个样本, 完全批处理
     num_runs=num_runs
 )
 print("\nL1_avg_df (from GPU batched execution):")
 print(L1_avg_df.head())
 
-output_path = f"/home/lg/new_push_pull/合成数据/output_dir/{strategy}_{topology}_hetero_alpha{alpha}_c={c}_avg_n={n}_gpu_batched.csv"
+output_path = f"/home/lg/new_push_pull/合成数据/hetero_full/{strategy}_{topology}_hetero_alpha{alpha}_c={c}_avg_n={n}_gpu_batched.csv"
 L1_avg_df.to_csv(output_path, index_label="iteration")
 print(f"Average results saved to {output_path}")
