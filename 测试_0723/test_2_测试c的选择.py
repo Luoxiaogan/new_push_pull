@@ -14,8 +14,8 @@ from scripts_pushpull_differ_lr.experiment_utils import generate_topology_matric
 
 # 生成通信拓扑
 n = 9
-# A, B = generate_topology_matrices("neighbor", n=n, matrix_seed=51583, k=3)
-A, B = generate_topology_matrices("exp", n=n, matrix_seed=51583, k=3)
+A, B = generate_topology_matrices("neighbor", n=n, matrix_seed=51583, k=3)
+#A, B = generate_topology_matrices("exp", n=n, matrix_seed=51583, k=3)
 
 # 计算所有可能的c值
 lr_basic = 2e-3

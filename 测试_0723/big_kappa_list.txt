@@ -1,0 +1,2 @@
+A, B = generate_topology_matrices("neighbor", n=16, matrix_seed=51583, k=3)
+A, B = generate_topology_matrices("neighbor", n=16, matrix_seed=416, k=2)
