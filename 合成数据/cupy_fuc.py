@@ -88,6 +88,7 @@ def PushPull_with_batch_batched_gpu(
     A_gpu, B_gpu, init_x_gpu_batched, # init_x shape: (num_runs, n, d)
     h_data_nodes_gpu, y_data_nodes_gpu, # Original h_tilde, y_tilde on GPU
     grad_func_batched_gpu, # The new batched gradient function for GPU
+    loss_func_batched_gpu, # The batched loss function for GPU
     rho, lr, sigma_n,
     max_it, batch_size, num_runs
 ):
@@ -101,8 +102,9 @@ def PushPull_with_batch_batched_gpu(
     
     y = cp.copy(g) # Shape: (num_runs, n, d)
 
-    # Store average gradient norm over runs
+    # Store history
     avg_gradient_norm_history = []
+    avg_loss_history = []
 
     for iter_num in range(max_it):
         # x_update: x = A @ x - lr * y
@@ -121,7 +123,7 @@ def PushPull_with_batch_batched_gpu(
         y = term_By + g_new - g
         g = g_new # Update old gradient
 
-        # --- Record history (averaged over runs) ---
+        # --- Record gradient norm history (averaged over runs) ---
         # 1. Calculate mean_x for each run: x_mean_per_run shape (num_runs, 1, d)
         x_mean_per_run = cp.mean(x, axis=1, keepdims=True)
         
@@ -144,13 +146,26 @@ def PushPull_with_batch_batched_gpu(
         # 6. Average these norms over all runs: avg_norm_over_runs (scalar)
         avg_norm_over_runs_scalar = cp.mean(norm_per_run)
         avg_gradient_norm_history.append(cp.asnumpy(avg_norm_over_runs_scalar)) # Store as numpy float for pandas
+        
+        # --- Calculate and record loss history ---
+        # Calculate loss on the full dataset using mean x from each run
+        loss_per_run = loss_func_batched_gpu(
+            x_mean_expand_per_run, y_data_nodes_gpu, h_data_nodes_gpu, 
+            rho=rho, batch_size=None, num_runs=num_runs
+        )
+        # Average loss across all runs
+        avg_loss_scalar = cp.mean(loss_per_run)
+        avg_loss_history.append(cp.asnumpy(avg_loss_scalar))
 
         if (iter_num + 1) % 10 == 0: # Print progress
-            print(f"Iteration {iter_num+1}/{max_it}, Avg Grad Norm: {avg_norm_over_runs_scalar:.6f}")
+            print(f"Iteration {iter_num+1}/{max_it}, "
+                  f"Avg Grad Norm: {avg_norm_over_runs_scalar:.6f}, "
+                  f"Avg Loss: {avg_loss_scalar:.6f}")
 
 
     return pd.DataFrame({
         "gradient_norm_on_full_trainset_avg": avg_gradient_norm_history,
+        "loss_on_full_trainset_avg": avg_loss_history,
     })
 
 
@@ -158,12 +173,72 @@ import cupy as cp
 import numpy as np
 import pandas as pd
 
+def loss_with_batch_batched_gpu(
+    x_batched,  # Shape: (num_runs, n, d)
+    y_nodes_gpu,  # Shape: (n, L) - global y_tilde on GPU
+    h_nodes_gpu,  # Shape: (n, L, d) - global h_tilde on GPU
+    rho,
+    batch_size,
+    num_runs # 传入 num_runs
+):
+    n_nodes, L_samples, d_dims = h_nodes_gpu.shape # n, L, d from h_tilde
+
+    if batch_size is None or batch_size >= L_samples:
+        batch_size_eff = L_samples
+        # Expand h_nodes_gpu and y_nodes_gpu for num_runs using broadcasting
+        # h_batch_gpu shape: (num_runs, n, L, d)
+        # y_batch_gpu shape: (num_runs, n, L)
+        h_batch_gpu = cp.broadcast_to(h_nodes_gpu[cp.newaxis, ...], (num_runs, n_nodes, L_samples, d_dims))
+        y_batch_gpu = cp.broadcast_to(y_nodes_gpu[cp.newaxis, ...], (num_runs, n_nodes, L_samples))
+    else:
+        batch_size_eff = batch_size
+        # Sample indices for each run and each node independently
+        # batch_indices shape: (num_runs, n, batch_size_eff)
+        all_indices = cp.random.rand(num_runs, n_nodes, L_samples).argsort(axis=-1)[:, :, :batch_size_eff]
+        batch_indices = all_indices.astype(cp.int32) # Ensure integer indices
+
+        # Create indices for gathering
+        run_idx = cp.arange(num_runs)[:, cp.newaxis, cp.newaxis] # (num_runs, 1, 1)
+        node_idx = cp.arange(n_nodes)[cp.newaxis, :, cp.newaxis]   # (1, n, 1)
+        
+        h_batch_gpu = h_nodes_gpu[node_idx, batch_indices, :] 
+        y_batch_gpu = y_nodes_gpu[node_idx, batch_indices]
+
+    # x_batched is (num_runs, n, d)
+    # h_batch_gpu is (num_runs, n, batch_size_eff, d)
+    # y_batch_gpu is (num_runs, n, batch_size_eff)
+
+    # einsum for h_dot_x: result shape (num_runs, n, batch_size_eff)
+    h_dot_x = cp.einsum('rnbd,rnd->rnb', h_batch_gpu, x_batched)
+    
+    # Logistic loss: log(1 + exp(-y * h_dot_x))
+    exp_val = cp.exp(-y_batch_gpu * h_dot_x)
+    cp.clip(exp_val, a_min=None, a_max=1e300, out=exp_val)
+    
+    # Calculate loss per sample, then average over batch dimension
+    loss_per_sample = cp.log1p(exp_val)  # log(1 + exp(-y * h_dot_x))
+    loss_per_node_run = cp.mean(loss_per_sample, axis=2)  # Average over batch samples, shape (num_runs, n)
+    
+    # L2 regularization term
+    x_squared = x_batched**2
+    reg_term = rho * cp.log(1 + x_squared)  # Shape (num_runs, n, d)
+    reg_per_node_run = cp.mean(reg_term, axis=2)  # Average over features, shape (num_runs, n)
+    
+    # Total loss: logistic loss + regularization
+    total_loss_per_node_run = loss_per_node_run + reg_per_node_run  # Shape (num_runs, n)
+    
+    # Average loss across all nodes for each run
+    loss_per_run = cp.mean(total_loss_per_node_run, axis=1)  # Shape (num_runs)
+    
+    return loss_per_run  # Return loss for each run
+
 # Assume grad_with_batch_batched_gpu and the Perron vector functions are defined as above
 
 def PushPull_with_batch_batched_gpu_new(
     A_gpu, B_gpu, init_x_gpu_batched, # init_x shape: (num_runs, n, d)
     h_data_nodes_gpu, y_data_nodes_gpu, # Original h_tilde, y_tilde on GPU
     grad_func_batched_gpu, # The new batched gradient function for GPU
+    loss_func_batched_gpu, # The batched loss function for GPU
     rho, lr, sigma_n,
     max_it, batch_size, num_runs
 ):
@@ -193,6 +268,7 @@ def PushPull_with_batch_batched_gpu_new(
     avg_gradient_norm_history = []
     piA_y_norm_history = []
     g_bar_norm_history = []
+    avg_loss_history = []
 
 
     for iter_num in range(max_it):
@@ -235,7 +311,16 @@ def PushPull_with_batch_batched_gpu_new(
         avg_norm_y = cp.mean(norm_per_run_y)
         piA_y_norm_history.append(cp.asnumpy(avg_norm_y))
 
-        # # (3) New metric: 2-norm of the average gradient g_bar
+        # (3) Calculate loss on the full dataset using mean x from each run
+        loss_per_run = loss_func_batched_gpu(
+            x_mean_expand_per_run, y_data_nodes_gpu, h_data_nodes_gpu, 
+            rho=rho, batch_size=None, num_runs=num_runs
+        )
+        # Average loss across all runs
+        avg_loss_scalar = cp.mean(loss_per_run)
+        avg_loss_history.append(cp.asnumpy(avg_loss_scalar))
+
+        # # (4) 2-norm of the average gradient g_bar
         # # Average g over nodes (axis=1) for each run
         # g_bar_per_run = cp.mean(g, axis=1) # Shape (num_runs, d)
         # # Calculate norm for each run, then average
@@ -247,12 +332,108 @@ def PushPull_with_batch_batched_gpu_new(
         if (iter_num + 1) % 10 == 0: # Print progress
             print(f"Iteration {iter_num+1}/{max_it}, "
                   f"Avg Grad Norm: {avg_norm_over_runs_scalar:.6f}, "
-                  f"piA(I-Binf)y Norm: {avg_norm_y:.6f}")
+                  f"piA(I-Binf)y Norm: {avg_norm_y:.6f}, "
+                  f"Avg Loss: {avg_loss_scalar:.6f}")
                   #f"g_bar Norm: {avg_norm_g_bar:.6f}")
 
     # Return results in a pandas DataFrame
     return pd.DataFrame({
         "gradient_norm_on_full_trainset_avg": avg_gradient_norm_history,
         "piA_I_minus_Binf_y_norm": piA_y_norm_history,
+        "loss_on_full_trainset_avg": avg_loss_history,
         #"g_bar_norm": g_bar_norm_history,
+    })
+
+
+
+def PushPull_with_batch_batched_gpu_differ_lr(
+    A_gpu, B_gpu, init_x_gpu_batched, # init_x shape: (num_runs, n, d)
+    h_data_nodes_gpu, y_data_nodes_gpu, # Original h_tilde, y_tilde on GPU
+    grad_func_batched_gpu, # The new batched gradient function for GPU
+    loss_func_batched_gpu, # The batched loss function for GPU
+    rho, 
+    lr_list, 
+    sigma_n,
+    max_it, batch_size, num_runs
+):
+    x = cp.copy(init_x_gpu_batched) # Shape: (num_runs, n, d)
+    num_n, num_d = x.shape[1], x.shape[2] # n, d
+
+    # Initial gradient calculation
+    g = grad_func_batched_gpu(x, y_data_nodes_gpu, h_data_nodes_gpu, rho, batch_size, num_runs)
+    if sigma_n > 0:
+        g += sigma_n * cp.random.normal(size=(num_runs, num_n, num_d))
+    
+    y = cp.copy(g) # Shape: (num_runs, n, d)
+
+    # Store history
+    avg_gradient_norm_history = []
+    avg_loss_history = []
+
+    for iter_num in range(max_it):
+        # x_update: x = A @ x - lr * y
+        # A_gpu is (n,n). x is (num_runs, n, d).
+        # einsum: 'jk,rkl->rjl' where j=n_out, k=n_in, r=num_runs, l=d
+        term_Ax = cp.einsum('jk,rkl->rjl', A_gpu, x)
+        
+        # 确保lr_list形状正确，应该是(num_n,)的一维数组
+        # 重塑为(1, num_n, 1)然后广播到(num_runs, num_n, num_d)
+        lr_list = cp.asarray(lr_list)
+
+        lr = cp.broadcast_to(lr_list.reshape(1, num_n, 1), (num_runs, num_n, num_d))
+        x = term_Ax - lr * y
+        
+        # New gradient
+        g_new = grad_func_batched_gpu(x, y_data_nodes_gpu, h_data_nodes_gpu, rho, batch_size, num_runs)
+        if sigma_n > 0:
+            g_new += sigma_n * cp.random.normal(size=(num_runs, num_n, num_d))
+
+        # y_update: y = B @ y + g_new - g
+        term_By = cp.einsum('jk,rkl->rjl', B_gpu, y)
+        y = term_By + g_new - g
+        g = g_new # Update old gradient
+
+        # --- Record gradient norm history (averaged over runs) ---
+        # 1. Calculate mean_x for each run: x_mean_per_run shape (num_runs, 1, d)
+        x_mean_per_run = cp.mean(x, axis=1, keepdims=True)
+        
+        # 2. Expand x_mean_per_run for grad_func: shape (num_runs, n, d)
+        x_mean_expand_per_run = cp.broadcast_to(x_mean_per_run, (num_runs, num_n, num_d))
+        
+        # 3. Calculate full batch gradient for each run's x_mean: _grad_on_full_per_run shape (num_runs, n, d)
+        #    Use batch_size=None for full dataset, no sigma_n noise for this evaluation
+        _grad_on_full_per_run = grad_func_batched_gpu(
+            x_mean_expand_per_run, y_data_nodes_gpu, h_data_nodes_gpu,
+            rho=rho, batch_size=None, num_runs=num_runs
+        )
+        
+        # 4. Calculate mean gradient over nodes for each run: mean_grad_per_run shape (num_runs, 1, d)
+        mean_grad_per_run = cp.mean(_grad_on_full_per_run, axis=1, keepdims=True)
+        
+        # 5. Calculate norm of mean_grad for each run: norm_per_run shape (num_runs,)
+        norm_per_run = cp.linalg.norm(mean_grad_per_run, axis=2).squeeze() # Squeeze out d-dim (norm result) and then 1-dim
+        
+        # 6. Average these norms over all runs: avg_norm_over_runs (scalar)
+        avg_norm_over_runs_scalar = cp.mean(norm_per_run)
+        avg_gradient_norm_history.append(cp.asnumpy(avg_norm_over_runs_scalar)) # Store as numpy float for pandas
+        
+        # --- Calculate and record loss history ---
+        # Calculate loss on the full dataset using mean x from each run
+        loss_per_run = loss_func_batched_gpu(
+            x_mean_expand_per_run, y_data_nodes_gpu, h_data_nodes_gpu, 
+            rho=rho, batch_size=None, num_runs=num_runs
+        )
+        # Average loss across all runs
+        avg_loss_scalar = cp.mean(loss_per_run)
+        avg_loss_history.append(cp.asnumpy(avg_loss_scalar))
+
+        if (iter_num + 1) % 10 == 0: # Print progress
+            print(f"Iteration {iter_num+1}/{max_it}, "
+                  f"Avg Grad Norm: {avg_norm_over_runs_scalar:.6f}, "
+                  f"Avg Loss: {avg_loss_scalar:.6f}")
+
+
+    return pd.DataFrame({
+        "gradient_norm_on_full_trainset_avg": avg_gradient_norm_history,
+        "loss_on_full_trainset_avg": avg_loss_history,
     })

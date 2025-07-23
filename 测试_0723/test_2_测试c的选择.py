@@ -13,9 +13,8 @@ from utils.algebra_utils import show_col, show_row, get_left_perron, get_right_p
 from scripts_pushpull_differ_lr.experiment_utils import generate_topology_matrices, compute_possible_c
 
 # 生成通信拓扑
-n = 9
-A, B = generate_topology_matrices("neighbor", n=n, matrix_seed=51583, k=3)
-#A, B = generate_topology_matrices("exp", n=n, matrix_seed=51583, k=3)
+n = 16
+A, B = generate_topology_matrices("neighbor", n=16, matrix_seed=51583, k=3)
 
 # 计算所有可能的c值
 lr_basic = 2e-3
@@ -29,4 +28,4 @@ results = compute_possible_c(
     )
 
 print("\n")
-print(results[23])
+print(results[19][1])
