@@ -15,7 +15,8 @@ project_root = os.path.abspath(os.path.join(current_dir, '..'))
 if project_root not in sys.path:
     sys.path.insert(0, project_root)
 
-from utils.algebra_utils import get_left_perron, get_right_perron
+from utils.algebra_utils import get_left_perron, get_right_perron, show_row, show_col
+from utils.d_matrix_utils import generate_d_matrices_theoretical, generate_random_d_diagonal
 from .network_utils import (
     get_matrixs_from_exp_graph,
     generate_grid_matrices,
@@ -199,3 +200,135 @@ def average_gradient_norm_results(df_list: List[pd.DataFrame]) -> pd.DataFrame:
     # Average
     df_avg = df_sum / len(df_list)
     return df_avg
+
+
+def compute_possible_c(
+    A: np.ndarray,
+    B: np.ndarray,
+    lr_basic: float,
+    n: int,
+    num_samples: int = 5,
+    sample_seed: int = 42
+) -> List[Tuple[float, List[float], str]]:
+    """
+    Compute possible c values and corresponding D matrices for different strategies.
+    
+    Args:
+        A: Row-stochastic matrix
+        B: Column-stochastic matrix
+        lr_basic: Base learning rate
+        n: Number of nodes
+        num_samples: Number of random D matrices to generate
+        sample_seed: Random seed for generating random samples
+        
+    Returns:
+        List of tuples (c_value, d_diagonal_list, remark)
+        where remark indicates if diagonal contains 0
+    """
+    # Step 1: Show stochastic properties
+    print("Row-stochastic matrix A:")
+    show_row(A)
+    print("\nColumn-stochastic matrix B:")
+    show_col(B)
+    
+    # Step 2: Compute and display pi_A_hadamard_pi_B
+    pi_a = get_left_perron(A)
+    pi_b = get_right_perron(B)
+    pi_A_hadamard_pi_B = pi_a * pi_b
+    print("\nHadamard Product (pi_A ⊙ pi_B):", pi_A_hadamard_pi_B)
+    
+    # Sort indices by hadamard product in descending order
+    sorted_indices = np.argsort(pi_A_hadamard_pi_B)[::-1]
+    print("Sorted Indices (descending):", sorted_indices)
+    
+    # Step 3: Generate learning rates for existing strategies
+    strategies = ["uniform", "pi_a_inverse", "pi_b_inverse"]
+    tuple_list = []
+    
+    # print("\n=== Standard Strategies ===")
+    for strategy in strategies:
+        lr_list = compute_learning_rates(
+            strategy=strategy,
+            A=A,
+            B=B,
+            lr_basic=lr_basic,
+            n=n
+        )
+        c = compute_c_value(A=A, B=B, lr_list=lr_list, lr_basic=lr_basic)
+        
+        # Extract diagonal elements of D
+        d_diagonal = np.array([lr / lr_basic for lr in lr_list])
+        
+        # print(f"\nStrategy: {strategy}")
+        # print(f"C Value: {c:.6f}")
+        
+        tuple_list.append((c, d_diagonal, strategy))
+    
+    # Step 4: Use generate_d_matrices_theoretical with vertices option
+    # print("\n=== Vertices from Simplex Method ===")
+    vertices_results = generate_d_matrices_theoretical(
+        A=A,
+        B=B,
+        num_c_values=n,  # Get all n vertices
+        distribution="vertices"
+    )
+    
+    # Add vertices results to tuple_list
+    for i, (d_diagonal, c_value) in enumerate(vertices_results):
+        # Determine which vertex this corresponds to
+        vertex_idx = np.argmax(d_diagonal)
+        strategy_name = f"vertex_{vertex_idx} (rank {sorted_indices.tolist().index(vertex_idx) + 1} in pi_A⊙pi_B)"
+        
+        # print(f"\nStrategy: {strategy_name}")
+        # print(f"C Value: {c_value:.6f}")
+        
+        tuple_list.append((c_value, d_diagonal, strategy_name))
+    
+    # Step 4.5: Generate random D matrices
+    # print(f"\n=== Random Samples (num_samples={num_samples}) ===")
+    pi_a = get_left_perron(A)
+    pi_b = get_right_perron(B)
+    
+    for i in range(num_samples):
+        # Generate random D diagonal with seed for reproducibility
+        d_diagonal = generate_random_d_diagonal(n, seed=sample_seed + i)
+        
+        # Compute c value
+        c_value = n * np.sum(pi_a * d_diagonal * pi_b)
+        
+        strategy_name = f"random_sample_{i+1}"
+        
+        # print(f"\nStrategy: {strategy_name}")
+        # print(f"C Value: {c_value:.6f}")
+        
+        tuple_list.append((c_value, d_diagonal, strategy_name))
+    
+    # Step 5: Process tuple_list to check for zeros and create final output
+    final_list = []
+    
+    print("\n=== Final Analysis ===")
+    for c, d_diagonal, strategy in tuple_list:
+        # Check if diagonal contains zero or very small values
+        contains_zero = np.any(d_diagonal < 1e-10)
+        
+        # Convert d_diagonal to list for output
+        d_list = d_diagonal.tolist()
+        
+        # Create remark
+        if contains_zero:
+            remark = f"{strategy} (WARNING: contains zero/near-zero values)"
+        else:
+            remark = strategy
+        
+        final_list.append((c, d_list, remark))
+    
+    # Sort by c value
+    final_list.sort(key=lambda x: x[0])
+
+    index = 0
+    print("\nSorted results by c value:")
+    for c, d_list, remark in final_list:
+        print(f"index {index} C={c:.6f}: {remark}")
+        index += 1
+
+    return final_list

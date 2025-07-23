@@ -1,5 +1,36 @@
 """
 Utility functions for generating diagonal matrices D with varying convergence factors c.
+
+Theoretical Foundation:
+-----------------------
+For distributed optimization with the PushPull algorithm, the convergence rate depends on
+the convergence factor c = n * pi_A^T * D * pi_B, where:
+- n is the number of nodes
+- pi_A is the left Perron vector of the row-stochastic mixing matrix A
+- pi_B is the right Perron vector of the column-stochastic mixing matrix B
+- D is a diagonal matrix with positive diagonal elements d_i satisfying sum(d_i) = n
+
+The constraint sum(d_i) = n with d_i > 0 defines an (n-1)-dimensional simplex in R^n.
+
+Key Insight (Simplex Method):
+The function c(d) = n * sum(pi_A[i] * d[i] * pi_B[i]) is linear in d.
+Linear functions on convex polytopes (like simplices) achieve their extrema at vertices.
+
+The vertices of our simplex are points where one d_j = n and all other d_i = 0.
+At vertex j: c_j = n^2 * pi_A[j] * pi_B[j]
+
+Therefore:
+- c_min = min_j(n^2 * pi_A[j] * pi_B[j])
+- c_max = max_j(n^2 * pi_A[j] * pi_B[j])
+
+This gives us the exact theoretical range of c without any sampling!
+
+Constructing Intermediate Values:
+Any d in the simplex can be expressed as a convex combination of vertices.
+For two vertices d_min and d_max, we can generate intermediate values via:
+d(alpha) = (1 - alpha) * d_min + alpha * d_max, where alpha in [0, 1]
+
+This produces c values that vary linearly from c_min to c_max.
 """
 
 import numpy as np
@@ -93,10 +124,22 @@ def generate_d_matrices_theoretical(
     """
     Generate D matrices using theoretical approach based on extreme points of the simplex.
     
-    This method computes the exact range of c values and can generate D matrices
-    in two modes:
-    - "uniform": Generate uniformly distributed c values via linear interpolation
-    - "vertices": Use the actual simplex vertices (may be non-uniform)
+    This method leverages the fact that c(d) is a linear function on a simplex:
+    1. Computes c at all vertices (where one d_j = n, others = 0)
+    2. Identifies exact c_min and c_max without any sampling
+    3. Generates intermediate values via convex combinations
+    
+    Mathematical Basis:
+    - The constraint {d: d_i > 0, sum(d_i) = n} forms a simplex
+    - c(d) = n * pi_A^T * diag(d) * pi_B is linear in d
+    - Linear functions on simplices achieve extrema at vertices
+    - At vertex j: c = n^2 * pi_A[j] * pi_B[j]
+    
+    Distribution Modes:
+    - "uniform": Generate uniformly spaced c values between c_min and c_max
+                Uses linear interpolation between the two extreme vertices
+    - "vertices": Use actual simplex vertices (sorted by c value)
+                 May produce non-uniform c spacing depending on pi_A and pi_B
     
     Args:
         A: Row-stochastic matrix
