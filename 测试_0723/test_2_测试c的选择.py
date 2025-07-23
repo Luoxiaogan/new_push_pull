@@ -10,7 +10,7 @@ if project_root not in sys.path:
 from scripts_pushpull_differ_lr.experiment_utils import generate_topology_matrices, compute_learning_rates, compute_c_value
 from utils.algebra_utils import show_col, show_row, get_left_perron, get_right_perron
 
-from scripts_pushpull_differ_lr.experiment_utils import generate_topology_matrices, compute_possible_c
+from scripts_pushpull_differ_lr.experiment_utils import generate_topology_matrices, compute_possible_c, compute_c_value
 
 # 生成通信拓扑
 n = 16
@@ -27,5 +27,19 @@ results = compute_possible_c(
     sample_seed=42
     )
 
+index = 38
+
+c = results[index][0]
+d = results[index][1]
+
 print("\n")
-print(results[19][1])
+print("c is", c)
+print("d is", d)
+
+e = 1e-1
+
+d = [e]* 6 + [n - e*(n-1)] + [e]*9
+
+lr_list = [lr_basic* i for i in d]
+c_new  = compute_c_value(A, B, lr_list, lr_basic)
+print("c_new is", c_new)
