@@ -222,11 +222,9 @@ def grad_with_batch(x, y, h, rho=0.001, batch_size=None):
     
     return (g1 + rho * g2).reshape(n, d)
 
-import cupy as cp
-
-def grad_with_batch_cupy(x, y, h, rho=0.001, batch_size=None):
+def loss_with_batch(x, y, h, rho=0.001, batch_size=None):
     """
-    支持 CuPy 的批次梯度计算函数（输入需为 CuPy 数组）
+    计算损失函数，支持批次采样
     """
     n, L, d = h.shape
     if batch_size is None or batch_size >= L:
@@ -234,21 +232,55 @@ def grad_with_batch_cupy(x, y, h, rho=0.001, batch_size=None):
         h_batch = h
         y_batch = y
     else:
-        # 使用 CuPy 的随机采样（每个节点独立采样）
-        batch_indices = cp.random.choice(L, batch_size, replace=False)
+        # 每个节点独立采样批次
+        batch_indices = np.random.choice(L, batch_size, replace=False)
         h_batch = h[:, batch_indices, :]
         y_batch = y[:, batch_indices]
     
-    # 计算梯度（全部使用 CuPy 操作）
-    h_dot_x = cp.einsum('ijk,ik->ij', h_batch, x)
-    exp_val = cp.exp(y_batch * h_dot_x)
-    cp.clip(exp_val, None, 1e300, out=exp_val)
+    x = x.reshape(-1)  # 确保 x 是 (n * d,) 的一维向量
     
-    g1 = -cp.einsum('ijk,ij->ik', h_batch, y_batch / (1 + exp_val)) / batch_size
+    # 计算 h_dot_x: h 和 x 的点积，形状为 (n, batch_size)
+    h_dot_x = np.einsum('ijk,k->ij', h_batch, x, optimize=True)
+
+    # 计算 stable_log_exp: log(1 + exp(-y * h_dot_x))，形状为 (n, batch_size)
+    log_exp_term = stable_log_exp(-y_batch * h_dot_x)
+
+    # 计算 term1: 所有节点和样本的损失平均值，标量
+    term1 = np.sum(log_exp_term) / batch_size
+    
+    # 计算正则化项: rho * x^2 / (1 + x^2)，标量
     x_squared = x**2
-    g2 = 2 * x / (1 + x_squared)**2
+    term2 = np.sum(rho * x_squared / (1 + x_squared))
     
-    return (g1 + rho * g2).reshape(n, d)
+    return term1 + term2
+
+# import cupy as cp
+
+# def grad_with_batch_cupy(x, y, h, rho=0.001, batch_size=None):
+#     """
+#     支持 CuPy 的批次梯度计算函数（输入需为 CuPy 数组）
+#     """
+#     n, L, d = h.shape
+#     if batch_size is None or batch_size >= L:
+#         batch_size = L
+#         h_batch = h
+#         y_batch = y
+#     else:
+#         # 使用 CuPy 的随机采样（每个节点独立采样）
+#         batch_indices = cp.random.choice(L, batch_size, replace=False)
+#         h_batch = h[:, batch_indices, :]
+#         y_batch = y[:, batch_indices]
+    
+#     # 计算梯度（全部使用 CuPy 操作）
+#     h_dot_x = cp.einsum('ijk,ik->ij', h_batch, x)
+#     exp_val = cp.exp(y_batch * h_dot_x)
+#     cp.clip(exp_val, None, 1e300, out=exp_val)
+    
+#     g1 = -cp.einsum('ijk,ij->ik', h_batch, y_batch / (1 + exp_val)) / batch_size
+#     x_squared = x**2
+#     g2 = 2 * x / (1 + x_squared)**2
+    
+#     return (g1 + rho * g2).reshape(n, d)
 
 #---------------------------------------------------------------------------
 
