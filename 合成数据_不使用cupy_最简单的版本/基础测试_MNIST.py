@@ -18,7 +18,7 @@ n = 4 # num_nodes, 6,12,18,24
 
 topology = "exp"
 matrix_seed = 51583
-lr_basic = 8e-1
+lr_basic = 5e-3
 sample_seed = 42
 num_samples = 20 
 
@@ -62,7 +62,7 @@ config = {
 }
 
 # save config to a file
-config_file_path = f"/Users/luogan/Code/new_push_pull/合成数据_不使用cupy_最简单的版本/MNIST/{strategy}_{topology}_hetero_alpha{alpha}_config.json"
+config_file_path = f"/home/lg/new_push_pull/合成数据_不使用cupy_最简单的版本/MNIST/{strategy}_{topology}_hetero_alpha{alpha}_lr={lr_basic}_config.json"
 # Create directory if it doesn't exist
 print(f"\nSaving config to {config_file_path}")
 os.makedirs(os.path.dirname(config_file_path), exist_ok=True)
@@ -79,13 +79,13 @@ df = train_track_grad_norm_with_hetero_different_learning_rate(
     B=B_cpu,
     dataset_name="MNIST",
     batch_size=128,
-    num_epochs=10,
+    num_epochs=500,
     remark="test",
     alpha=alpha,
-    root="/Users/luogan/Code/new_push_pull/合成数据_不使用cupy_最简单的版本/MNIST",
-    use_hetero=True,
+    root="/home/lg/new_push_pull/合成数据_不使用cupy_最简单的版本/MNIST",
+    use_hetero=False,
     device="cuda:0",
     seed=42,
 )
 
-df.to_csv(f"/Users/luogan/Code/new_push_pull/合成数据_不使用cupy_最简单的版本/MNIST/rho_{rho}_{strategy}_{topology}_hetero_alpha{alpha}_lr_basic={lr_basic}.csv")
+df.to_csv(f"/home/lg/new_push_pull/合成数据_不使用cupy_最简单的版本/MNIST/rho_{rho}_{strategy}_{topology}_hetero_alpha{alpha}_lr_basic={lr_basic}.csv")

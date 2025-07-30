@@ -1,11 +1,11 @@
 {
     "n": 4,
-    "strategy": "uniform",
+    "strategy": "uniform_uniform",
     "num_samples": 20,
     "topology": "exp",
     "matrix_seed": 51583,
     "c": 0.9275441720312289,
-    "lr_basic": 0.02,
+    "lr_basic": 0.005,
     "d_list": [
         1.0,
         1.0,
@@ -13,10 +13,10 @@
         1.0
     ],
     "lr_list": [
-        0.02,
-        0.02,
-        0.02,
-        0.02
+        0.005,
+        0.005,
+        0.005,
+        0.005
     ],
     "heterogeneous": true,
     "alpha": 0.1

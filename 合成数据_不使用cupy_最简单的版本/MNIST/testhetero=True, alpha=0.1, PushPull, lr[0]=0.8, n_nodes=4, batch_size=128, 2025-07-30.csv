@@ -1,0 +1,4 @@
+epoch,train_loss(total),test_loss(average),test_accuracy(average),grad_norm_per_epoch,consensus_per_epoch
+1,,,0.098,0.06187077984213829,
+2,,,0.098,,
+3,,,0.098,,
