@@ -1,0 +1,23 @@
+{
+    "n": 4,
+    "strategy": "uniform",
+    "num_samples": 20,
+    "topology": "exp",
+    "matrix_seed": 51583,
+    "c": 0.9275441720312287,
+    "lr_basic": 0.8,
+    "d_list": [
+        1.0,
+        1.0,
+        1.0,
+        1.0
+    ],
+    "lr_list": [
+        0.8,
+        0.8,
+        0.8,
+        0.8
+    ],
+    "heterogeneous": true,
+    "alpha": 0.1
+}
