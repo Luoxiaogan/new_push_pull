@@ -1,5 +1,22 @@
 # Distributed Optimization Simulation Project
 
+## 🔴 CRITICAL RULES - MUST FOLLOW
+
+### Plan Tool Execution Rule
+**IMPORTANT**: When using the Plan tool or entering plan mode:
+1. **ALWAYS** save the generated plan as a new `.md` file in `.claude/tasks/` directory
+2. **File naming**: Use format `YYYY-MM-DD_HH-MM_task_description.md` 
+3. **File content**: Include the complete plan with clear steps, objectives, and success criteria
+4. **Execution**: After saving the plan file, follow the saved plan systematically
+5. **Reference**: Always reference the saved plan file path when executing tasks
+
+Example workflow:
+```
+User requests → Enter plan mode → Create plan → Save to .claude/tasks/2024-XX-XX_XX-XX_task_name.md → Execute according to saved plan
+```
+
+This ensures all plans are documented, traceable, and can be reviewed or resumed later.
+
 ## Project Overview
 
 This project simulates distributed optimization algorithms on a single GPU. It is designed to test and analyze various distributed optimization strategies, particularly the PushPull algorithm, without requiring an actual distributed computing environment.
@@ -162,6 +179,12 @@ df = train_track_grad_norm_with_hetero_different_learning_rate(
 # Save results
 df.to_csv("experiment_results.csv")
 ```
+
+## Documentation References
+
+### Synthetic Data Testing (合成数据测试)
+For questions related to `合成数据_不使用cupy_最简单的版本/basic_test.py` or just the dir `合成数据_不使用cupy_最简单的版本/`, please refer to the detailed analysis document:
+- **[Basic Test Analysis](.claude/documentation/basic_test_分析总结.md)**: Comprehensive analysis of the basic_test.py script and all its dependencies, including PushPull algorithm implementation, heterogeneous data distribution, and convergence analysis.
 
 ## Important Notes
 
